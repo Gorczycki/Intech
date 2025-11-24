@@ -1,0 +1,48 @@
+Title: Trader 
+
+Department: Portfolio Management Date: 10/2025
+FLSA: Exempt Location: Preferred location West Palm Beach, FL
+
+
+Role Purpose
+
+Responsible for the operation and support of Intech's internally developed trading system and implementation of the investment process. 
+Operates all trading system applications in conjunction with other team members, including the reviewing of security transactions, 
+managing the release, execution, and return of trade orders, and ensuring all trading system functions are operating consistently with 
+the portfolio implementation process. Works in conjunction with team members to design, develop, and test trade implementation improvements. 
+Provides system support to all trading applications including collaborating with various parties such as data vendors, clients, 
+executing brokers, and custodians. Collaborates with Portfolio Management team to perform research on trading costs and market data. 
+
+
+
+Essential Functions
+
+• Operates the trading system as a member of the trading team
+• Maintains and troubleshoots all trading system applications
+• Designs and develops system improvements
+• Collaborates with accounting, back office, and operations teams in coordinating the entire trade order lifecycle
+• Leads broker and trading data vendor relationships
+• Discusses implementation process as part of client/prospect presentations
+• Performs quantitative research on trading and market data
+
+
+Qualifications
+
+
+
+Knowledge and Skills
+
+• Proficient knowledge of structured programming languages, specific knowledge of Python strongly preferred
+• Experience working with Snowflake, SQL, or Tableau preferred
+• Knowledge of database applications
+• High standards of ethical conduct in adherence to applicable securities law and company policies
+• Strong attention to detail and accuracy
+• Strong analytical and problem solving skills
+• Ability to work independently within established guidelines
+
+
+Minimum Experience and Education
+
+• Undergraduate degree in technical area such as mathematics, computer science, engineering, or physics
+• No prior industry experience is required
+• Ability to demonstrate experience with required knowledge and skills
