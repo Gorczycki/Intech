@@ -5,10 +5,11 @@ import matplotlib.pyplot as plt
 
 #add function for deletion of current .db to replace with updated csv
 #assume portfolio equities were purchased at Day 1 price
-#add total cash spent for portfolio
+#could define connector sqlite3.connect() function
 
 
 #makes initial .db file, imports all data from csv to .db
+#is "prices" somehow the "master" variable?
 def create_df_from_file(csv_path, db_path):
 
     df = pd.read_csv(csv_path)
@@ -27,7 +28,7 @@ def create_df_from_file(csv_path, db_path):
     #    STOCK1     211.86
     #H
 
-    #simplify by dropping/converting "price on date X" to integer date (1,2,3,...,21):
+    #simplify by dropping/converting "price on date X" to integer date (1,2,3,...,21) and "day":
     revised_df["day"] = revised_df["day_label"].str.replace("Price on Date ", "").astype(int)
     revised_df = revised_df.drop(columns=["day_label"]) 
 
@@ -46,29 +47,37 @@ def create_df_from_file(csv_path, db_path):
 
 
 
-
-
 #Which stocks had the largest relative returns? Meaning share-ownership # agnostic
-def rel_returns():
-    rankings = []
-    pct = 0
-    tickers = []
-    pcts = []
+#Single-stock returns relative to the index return over the period
+#stock x outperformed index by x percent
+
+#Make table of 10 best and 10 worst with percentage
+def relative_returns():
     connector = sqlite3.connect("equities.db")
     df = pd.read_sql_query("SELECT * FROM prices", connector)
     connector.close()
-    for ticker, group in df.groupby("ticker"):
-        initial_quote = group.loc[group['day'] == 1, 'price'].values[0]
-        ending_quote = group.loc[group['day'] == 21, 'price'].values[0]
-        pct = (ending_quote - initial_quote)/initial_quote * 100
-        pct = round(pct,2)
-        tickers.append(ticker)
-        pcts.append(pct)
-        rankings.append((ticker, pct))
-    
-    rankings = sorted(rankings, key=lambda x: x[1], reverse=True)
+
+    indexx_return = index_return()
+    tickerrs = df["ticker"].unique()
+
+    rankings = []
+
+    for t in tickerrs:
+        initial_val = df.loc[(df["day"] == 1) & (df["ticker"] == t), 'price'].values[0] #sorts on both ticker X and Day Y to find price Z
+       
+        day_final = df["day"].nunique() #determines final day number
+        final_val = df.loc[(df["day"] == day_final) & (df["ticker"] == t), 'price'].values[0] #grabs price on final day for ticker X
+
+        pctt = (final_val - initial_val)/initial_val * 100
+        rel_return = pctt - indexx_return #"gained 2.3% over index"
+        rel_return = round(rel_return,2)
+        rankings.append((t, rel_return)) #two-tuple
+
+    rankings = sorted(rankings, key=lambda x: x[1], reverse = True) #key=lambda x: x[1] sorts on the 2nd [0,1] tuple
+
 
     return rankings
+
 
 
 
@@ -79,24 +88,20 @@ def rel_returns():
 #What was the aggregate return of the portfolio?
 def portfolio_return():
     connector = sqlite3.connect("equities.db")
-    df_temp = pd.read_sql_query("SELECT * FROM prices WHERE portfolio_shares > 0", connector)    
+    df = pd.read_sql_query("SELECT * FROM prices WHERE portfolio_shares > 0", connector)
     connector.close()
-    percentage_return = 0
-    starting_market_value = 0
-    ending_MV = 0
-    number_days = df_temp["day"].nunique()
-    for ticker, group in df_temp.groupby("ticker"):
-        day1_row = group.loc[group['day'] == 1]
-        day21_row = group.loc[group['day'] == number_days]
-        starting_market_value = starting_market_value + day1_row['price'].values[0] * day1_row['portfolio_shares'].values[0] #summing
-        ending_MV = ending_MV + day21_row['price'].values[0] * day1_row['portfolio_shares'].values[0] #summing
 
-        
-    percentage_return = (ending_MV - starting_market_value)/starting_market_value * 100 #to percent
-    percentage_return = round(percentage_return, 2)
+    initial_market_value = 0
+    initial_day = df.loc[df["day"] == 1]
+    initial_market_value = (initial_day["price"] * initial_day["portfolio_shares"]).sum() #.sum() loops through
 
-    return percentage_return
-  
+    number_days = df["day"].nunique() #day_counter
+    final_day = df.loc[df["day"] == number_days]
+    final_market_value = (final_day["price"] * final_day["portfolio_shares"]).sum()
+
+    pct_return = (final_market_value - initial_market_value)/initial_market_value * 100
+
+    return pct_return 
 
 
 
@@ -104,24 +109,20 @@ def portfolio_return():
 #What was the aggregate return of the index?
 def index_return():
     connector = sqlite3.connect("equities.db")
-    df_temp = pd.read_sql_query("SELECT * FROM prices", connector)
+    df = pd.read_sql_query("SELECT * FROM prices", connector)
     connector.close()
-    percentage_return = 0
-    starting_market_value = 0
-    ending_MV = 0
-    number_days = df_temp["day"].nunique()
-    for ticker, group in df_temp.groupby("ticker"):
-        day1_row = group.loc[group['day'] == 1]
-        day21_row = group.loc[group['day'] == number_days]
-        starting_market_value = starting_market_value + day1_row['price'].values[0] * day1_row['index_shares'].values[0]
-        ending_MV = ending_MV + day21_row['price'].values[0] * day1_row['index_shares'].values[0]
 
-    percentage_return = (ending_MV - starting_market_value)/starting_market_value * 100 #percent
-    percentage_return = round(percentage_return, 2)
+    day1 = df.loc[df["day"] == 1]
+    initial_val = (day1["index_shares"] * day1["price"]).sum()
 
-    return percentage_return
+    num_days = df["day"].nunique() #counts # of days
+    day_final = df.loc[df["day"] == num_days]
+    final_val = (day_final['index_shares'] * day_final['price']).sum()
 
+    pct_return = (final_val - initial_val)/initial_val * 100
+    pct_return = round(pct_return,2)
 
+    return pct_return
 
 
 
@@ -129,109 +130,89 @@ def index_return():
 
 #What were the largest single day contributors to performance, similarly the largest single day detractors?
 #Assuming contribution to portfolio performance (not index-wide), and assuming we use the scalar of number of shares as exposure to contribution/detraction.
-
+#"Which individual names positively or negatively contributed to performance of the portfolio relative to the index on a given day"
 #stock37 on day X, by Y% with Z shares
-#If we are scaling by shares owned, then we sort by dollar-amount Day-over-Day move?
 #Constant proportion of shares from day 1 to 21
+
+
+#Determines ranking of contribution of individual names to performance of portfolio, adjusting for index.
+#gives top 15 best, worst
 def contributors():
+    connector = sqlite3.connect("equities.db")
+    df = pd.read_sql_query("SELECT * FROM prices", connector)
+    connector.close()
+
+    number_days = df['day'].nunique() #counter
+    number_tickers = df['ticker'].unique() #counter
+
     rankings = []
-    dollar_change = 0
-    #change = 0
-    connector = sqlite3.connect("equities.db")
-    df_temp = pd.read_sql_query("SELECT * FROM prices WHERE portfolio_shares > 0", connector)
-    connector.close()
-    number_days = df_temp["day"].nunique() #grabbing total number of days
-    for ticker, group in df_temp.groupby("ticker"):
-        group = group.sort_values("day")
-        shares = group["portfolio_shares"].iloc[0]
-        for d in range(1, number_days):
-                day = group.loc[group['day'] == d]
-                day_ahead = group.loc[group['day'] == d+1]
-                #change = (day_ahead['price'].values[0] - day['price'].values[0])/day['price'].values[0]
-                #dollar_change = change * shares
-                dollar_change = (day_ahead['price'].values[0] - day['price'].values[0]) * day['portfolio_shares'].values[0]
-                dollar_change = round(dollar_change,2)
-                rankings.append(((ticker, d), dollar_change))
 
-    rankings = sorted(rankings, key=lambda x: x[1], reverse=True)
+    #index_returnn = index_return()
 
-    top_ten = []
-    bottom_ten = []
+    for tickerr in number_tickers:
+        for dayy in range(1, number_days):
+            day_data = df[df['day'] == dayy]
 
-    top_ten = rankings[:10]
-    bottom_ten = rankings[-10:]
+            total_pf_val = (day_data['portfolio_shares'] * day_data['price']).sum() #market value per-day
+            total_ind_val = (day_data['index_shares'] * day_data['price']).sum()
 
+            share_count = df.loc[(df['day'] == dayy) & (df['ticker'] == tickerr), 'portfolio_shares'].values[0] # num of pf shares of ticker X
+            pf_single_val1 = df.loc[(df['day'] == dayy) & (df['ticker'] == tickerr), 'price'].values[0] #price of ticker X on day Y
+            pf_single_val2 = df.loc[(df['day'] == dayy+1) & (df['ticker'] == tickerr), 'price'].values[0] #price of ticker X on day Y+1
+            weighting = (share_count * pf_single_val1) / total_pf_val # weighting = (price * shares) / portfolio_market_value
+            perf_pf = weighting * ((pf_single_val2 - pf_single_val1) / pf_single_val1) # performance, weighting scaled by percentage gain
 
-    return top_ten, bottom_ten
+            share_count2 = df.loc[(df['day'] == dayy) & (df['ticker'] == tickerr), 'index_shares'].values[0] # num of ind shares of ticker X
+            weighting2 = (share_count2 * pf_single_val1) / total_ind_val #index share %
+            perf_ind = weighting2 * ((pf_single_val2 - pf_single_val1) / pf_single_val1)
+            relative_perf = (perf_pf - perf_ind) * 100
+            relative_perf = round(relative_perf, 5)
+            rankings.append(((tickerr, dayy), relative_perf))
 
+    rankings = sorted(rankings, key=lambda x: x[1], reverse = True)
 
+    best = rankings[:15]
+    worst = rankings[-15:]
+    worst = sorted(worst, key=lambda x: x[1])
 
-
-
-def contributor_visualizer():
-    best, worst = contributors()
-    best_df = pd.DataFrame(best, columns = ['TickerDay', 'DollarChange'])
-    worst_df = pd.DataFrame(worst, columns = ['TickerDay', 'DollarChange'])
-    best_df[['Ticker', 'Day']] = pd.DataFrame(best_df['TickerDay'].tolist(), index=best_df.index)
-    worst_df[['Ticker', 'Day']] = pd.DataFrame(worst_df['TickerDay'].tolist(), index=worst_df.index)
-    best_df = best_df.drop(columns=['TickerDay'])
-    worst_df = worst_df.drop(columns=['TickerDay'])
-
-    plt.figure(figsize=(12,5))
-
-    plt.subplot(1,2,1)
-    plt.bar(best_df['Ticker'] + " (Day " + best_df['Day'].astype(str) + ")", best_df['DollarChange'])
-    plt.xticks(rotation=45, ha='right')
-    plt.title('Top 10 Single-Day Contributors')
-
-    plt.subplot(1,2,2)
-    plt.bar(worst_df['Ticker'] + " (Day " + worst_df['Day'].astype(str) + ")", worst_df['DollarChange'])
-    plt.xticks(rotation=45, ha='right')
-    plt.title('Bottom 10 Single-Day Contributors')
-
-    plt.tight_layout()
-    plt.show()
-
-
-
-
-
-
-def portfolio_index_visualizer():
-    connector = sqlite3.connect("equities.db")
-    df_temp = pd.read_sql_query("SELECT * FROM prices WHERE portfolio_shares > 0", connector)
-    connector.close()
-
-    MV = 0
-    daily_values = []
-
-    number_days = df_temp["day"].nunique() #grabbing total number of days
-    for d in range(1, number_days+1):
-        day_DF = df_temp.loc[df_temp['day'] == d]
-        MV = (day_DF['price'] * day_DF['portfolio_shares']).sum()
-        daily_values.append(MV)
-    
-    scaled_values = [v / 1e6 for v in daily_values]
-
-    plt.figure(figsize=(10, 5))
-    plt.plot(range(1, number_days + 1), scaled_values, marker='o', linestyle='-', color='blue')
-    plt.xlabel("Day")
-    plt.ylabel("Value $MM")
-    plt.title("Daily Portfolio Market Value")
-    plt.grid(True)
-    plt.xticks(range(1, number_days + 1))
-    plt.tight_layout()
-    plt.show()
-
-    return daily_values
-
+    return best, worst
 
 
 
 
 
 def main():
-    portfolio_index_visualizer()
+    print(f"Portfolio Return: {portfolio_return():+.2f}%")
+    print(f"Index Return: {index_return():+.2f}%")
+    print(f"Relative Performance: {portfolio_return() - index_return():+.2f}%")
+    print()
+    
+    returns = relative_returns()
+    print("Top 10 equities vs IDX:")
+    for ticker, ret in returns[:10]:
+        print(f"  {ticker}: {ret:+.2f}%")
+
+    print('\n')
+    
+    print("Worst 10 equities vs IDX:")
+    for ticker, ret in returns[-10:]:
+        print(f"  {ticker}: {ret:+.2f}%")
+    print()
+    
+
+
+    best_contrib, worst_contrib = contributors()
+    print("Best single-day performers:")
+    for (ticker, day), contrib in best_contrib:
+        print(f"  {ticker} (Day {day}): {contrib:+.2f}%")
+
+    print('\n')
+    
+    print("Worst single-day performers:")
+    for (ticker, day), contrib in worst_contrib:
+        print(f"  {ticker} (Day {day}): {contrib:+.2f}%")
+
+
 
 
 if __name__ == "__main__":
