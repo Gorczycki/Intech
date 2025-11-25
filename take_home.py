@@ -148,7 +148,9 @@ def contributors():
     rankings = []
 
     #index_returnn = index_return()
-
+    #1,2,3,4,5,6,7
+    #1,2
+    #2,3
     for tickerr in number_tickers:
         for dayy in range(1, number_days):
             day_data = df[df['day'] == dayy]
@@ -178,6 +180,49 @@ def contributors():
     return best, worst
 
 
+def creative():
+    #weight_old = price_i(changes) * share_count / pf_value(changes)
+    #weight_new = 
+    #back_to_old weightings: share count constant, 
+
+    #record initial weights
+    #get final weights
+    #STOCK10: (35$ * 100) / 5,000,000
+    # -> (42*100) / 5,000,000 + gains_from_10
+    #old: 42-35 = 7$ * 100 shares = 700$ gain 
+
+    connector = sqlite3.connect("equities.db")
+    df = pd.read_sql_query("SELECT * FROM prices WHERE portfolio_shares > 0", connector)
+    connector.close()
+
+    weights_initial = []
+    weights_final = []
+    num_days = df["day"].nunique()
+    num_tickers = df["ticker"].unique()
+
+    initial_day = df.loc[df["day"] == 1]
+    initial_pf_value = (initial_day["price"] * initial_day["portfolio_shares"]).sum() #market value per-day
+
+    final_day = df.loc[df["day"] == num_days]
+    final_pf_value = (final_day["price"] * final_day["portfolio_shares"]).sum()
+
+    #initial_weight formula : (price * share_count) / (pf_value), pf_value = \sum (shares_i * price_i)
+    for t in num_tickers:
+        val = df.loc[(df["day"] == 1) & (df["ticker"] == t), 'price'].values[0]
+        weight = val / initial_pf_val
+        val2 = df.loc[(df["day"] == num_days) & [df["ticker"] == t], 'price'].values[0]
+        weight2 = val2 / final_pf_value
+        weights_initial.append(weight) #initial weighting
+        weights_final.append(weight2)        
+        delta = abs(weight2 - weight) #percentage difference #shares needed, = final_price / final_pf 
+        final = (delta*final_pf_value) / val2
+        final = int(final)
+
+            
+
+    #vector of shares, choose BUY or SELL, find # shares to revert
+
+    
 
 
 
